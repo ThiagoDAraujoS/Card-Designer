@@ -6,16 +6,15 @@ from typing import List
 
 
 class BankManager:
+    """ This class is designed to facilitate the management of bank folders.
+        Banks, in this context, represent directories containing card images and their associated metafiles.
+    """
+
     def __init__(self):
         self.tool_path: str = ""
         self.existing_bank_names: List[str] = []
         self.inspected_image_bank_path: str = ""
         self.inspected_data_bank_path: str = ""
-        self.input_image_folder = ""
-
-    def set_image_folder(self, folder_path: str) -> None:
-        """Set the image folder path."""
-        self.input_image_folder = folder_path
 
     def inspect(self, bank_name: str) -> None:
         """Set the card data bank file paths based on the selected bank_name."""
