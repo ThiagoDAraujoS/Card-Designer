@@ -1,10 +1,8 @@
 import os
 import shutil
 from os import path
-import json
 from typing import List
-from data import Bank
-import jsondataclass
+from data import Card, Bank
 
 
 class BankManager:
@@ -29,7 +27,7 @@ class BankManager:
         """ Save the inspected bank to file """
         try:
             with open(self.inspected_data_bank_path, 'w') as data_file:
-                json_string = jsondataclass.to_json(self.inspected_bank)
+                json_string = self.inspected_bank.to_json(indent=2)
                 data_file.write(json_string)
         except Exception as e:
             print(f"An error occurred while saving the data: {e}")
@@ -49,9 +47,10 @@ class BankManager:
         try:
             with open(self.inspected_data_bank_path, 'r') as data_file:
                 json_string = data_file.read()
-                self.inspected_bank = jsondataclass.from_json(json_string, Bank)
+                self.inspected_bank = Bank.from_json(json_string)
         except Exception as e:
             print(f"An error occurred while loading the data: {e}")
+            return
 
         print(f"Selected bank: {bank_name}")
 
@@ -76,7 +75,7 @@ class BankManager:
         # Create an empty data.json file
         data_file_path = path.join(bank_folder_path, "data.json")
         with open(data_file_path, 'w') as data_file:
-            json.dump({}, data_file)
+            data_file.write(Bank().to_json(indent=2))
 
         # Create an empty 'images' folder
         images_folder_path = path.join(bank_folder_path, "images")
