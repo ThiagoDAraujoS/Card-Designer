@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from data import dataclass
 from typing import Set, Tuple, List
 
 
@@ -16,5 +16,6 @@ class Card:
     keywords: Set[Tuple[str, ...]]
 
 
+@dataclass
 class Bank:
-    cards: List[Card] = []
+    cards: List[Card]
