@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Set, Tuple
+from typing import Set, Tuple, List
 
 
 @dataclass
@@ -14,3 +14,7 @@ class Card:
     description: str
     rarity: str
     keywords: Set[Tuple[str, ...]]
+
+
+class Bank:
+    cards: List[Card] = []
