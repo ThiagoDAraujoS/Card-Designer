@@ -1,72 +1,43 @@
+from dataclasses_json import dataclass_json
+from dataclasses import dataclass, field
 import os
-import shutil
 from os import path
-from typing import List
-from data import Card, Bank
+import shutil
+from typing import List, Set
+from data import Card
 
 
-class BankManager:
-    """ This class is designed to facilitate the management of bank folders.
-        Banks, in this context, represent directories containing card images and their associated metafiles.
-    """
+class Bank:
+    """ Card Bank representation, this class can be serialized and deserialized """
+    @dataclass_json
+    @dataclass
+    class Data:
+        cards: Set[Card] = field(default_factory=list)
 
-    def __init__(self, main_path):
-        self.MAIN_PATH: str = main_path
-        self.existing_bank_names: List[str] = []
-        self.inspected_image_bank_path: str = ""
-        self.inspected_data_bank_path: str = ""
-        self.inspected_bank: Bank | None = None
+    MAIN_PATH = ""
 
-    def clear(self):
-        """ Clear the inspected bank """
-        self.inspected_bank = None
-        self.inspected_data_bank_path = ""
-        self.inspected_image_bank_path = ""
+    def __init__(self):
+        self.bank_path = ""
+        """ The folder where this bank is located """
 
-    def save(self):
-        """ Save the inspected bank to file """
-        try:
-            with open(self.inspected_data_bank_path, 'w') as data_file:
-                json_string = self.inspected_bank.to_json(indent=2)
-                data_file.write(json_string)
-        except Exception as e:
-            print(f"An error occurred while saving the data: {e}")
+        self.data_path = ""
+        """ Path to the data.json file """
 
-    def inspect(self, bank_name: str) -> None:
-        """Set the card data bank file paths based on the selected bank_name."""
-        bank_folder_path = path.join(self.MAIN_PATH, bank_name)
+        self.images_path = ""
+        """ Path to the images folder """
 
-        # Construct paths for image and data banks
-        self.inspected_image_bank_path = path.join(bank_folder_path, "images")
-        self.inspected_data_bank_path = path.join(bank_folder_path, "data.json")
+        self.data: Bank.Data = Bank.Data()
+        """ Serialized Card Bank """
 
-        if not path.exists(self.inspected_image_bank_path) or not path.exists(self.inspected_data_bank_path):
-            print(f"Bank {bank_name} not found or incomplete.")
-            return
+    @staticmethod
+    def create(bank_name: str) -> None:
+        """ Create a new card bank with the given name. """
+        self = Bank()
 
-        try:
-            with open(self.inspected_data_bank_path, 'r') as data_file:
-                json_string = data_file.read()
-                self.inspected_bank = Bank.from_json(json_string)
-        except Exception as e:
-            print(f"An error occurred while loading the data: {e}")
-            return
-
-        print(f"Selected bank: {bank_name}")
-
-    def load(self) -> None:
-        """Read all folders inside self.tool_path and build self.existing_bank_names."""
-        if not (path.exists(self.MAIN_PATH) and path.isdir(self.MAIN_PATH)):
-            print(f"Tool path {self.MAIN_PATH} does not exist or is not a directory.")
-            return
-        self.existing_bank_names = [name for name in os.listdir(self.MAIN_PATH) if path.isdir(path.join(self.MAIN_PATH, name))]
-
-    def create(self, name: str) -> None:
-        """Create a new card bank with the given name."""
-        bank_folder_path = path.join(self.MAIN_PATH, name)
+        bank_folder_path = path.join(Bank.MAIN_PATH, bank_name)
 
         if path.exists(bank_folder_path):
-            print(f"Bank {name} already exists.")
+            print(f"Bank {bank_name} already exists.")
             return
 
         # Create the bank folder
@@ -75,33 +46,121 @@ class BankManager:
         # Create an empty data.json file
         data_file_path = path.join(bank_folder_path, "data.json")
         with open(data_file_path, 'w') as data_file:
-            data_file.write(Bank().to_json(indent=2))
+            data_file.write(self.to_json(indent=2))
 
         # Create an empty 'images' folder
         images_folder_path = path.join(bank_folder_path, "images")
         os.mkdir(images_folder_path)
 
-        self.load()
-        print(f"Created bank: {name}")
+        print(f"Created bank: {bank_name}")
 
-    def copy(self, source_bank_name: str, new_bank_name: str) -> None:
-        """Copy an existing card bank and change its name."""
-        source_folder_path = path.join(self.MAIN_PATH, source_bank_name)
-        destination_folder_path = path.join(self.MAIN_PATH, new_bank_name)
+    @staticmethod
+    def copy(source_name: str, new_name: str):
+        """ Copy an existing card bank and change its name. """
+        source_folder_path = path.join(Bank.MAIN_PATH, source_name)
+        destination_folder_path = path.join(Bank.MAIN_PATH, new_name)
 
         if not path.exists(source_folder_path) or path.exists(destination_folder_path):
             print("Source bank does not exist or the destination bank already exists.")
             return
 
         try:
-            # Copy the existing bank to create a new one with a different name
             shutil.copytree(source_folder_path, destination_folder_path)
-            print(f"Successfully copied bank '{source_bank_name}' to '{new_bank_name}'")
+            print(f"Successfully copied bank '{source_name}' to '{new_name}'")
         except Exception as e:
             print(f"An error occurred while copying the bank: {e}")
 
+        return Bank.load(new_name)
+
+    @staticmethod
+    def load(bank_name):
+        """ Form a Bank object out of a data file """
+        self = Bank()
+        self.bank_path = path.join(Bank.MAIN_PATH, bank_name)
+        self.data_path = path.join(self.bank_path, "data.json")
+        self.images_path = path.join(self.bank_path, "images")
+
+        if not path.exists(self.images_path) or not path.exists(self.data_path):
+            print(f"Bank {bank_name} not found or incomplete.")
+            return
+
+        try:
+            with open(self.data_path, 'r') as data_file:
+                json_string = data_file.read()
+                self.data = Bank.Data.from_json(json_string)
+        except Exception as e:
+            print(f"An error occurred while loading the data: {e}")
+            return
+
+        print(f"Selected bank: {bank_name}")
+        return self
+
+    def save(self):
+        """ Save the inspected bank to file """
+        try:
+            with open(self.data_path, 'w') as data_file:
+                json_string = self.data.to_json(indent=2)
+                data_file.write(json_string)
+        except Exception as e:
+            print(f"An error occurred while saving the data: {e}")
+
+    def exists(self):
+        """ Check if all required folders and files exist.
+
+        Returns:
+            bool: True if all required components exist, False otherwise.
+        """
+        # Check if the bank_path directory exists
+        if not os.path.exists(self.bank_path):
+            return False
+
+        # Check if the data_path file exists
+        if not os.path.exists(self.data_path):
+            return False
+
+        # Check if the images_path directory exists
+        if not os.path.exists(self.images_path):
+            return False
+
+        return True
+
+    def create_card(self):
+        pass
+
+    def copy_card(self):
+        pass
+
+    def delete_card(self):
+        pass
+
+
+class BankManager:
+    """ This class is designed to facilitate the management of bank folders.
+        Banks, in this context, represent directories containing card images and their associated metafiles. """
+
+    def __init__(self, main_path):
+        self.MAIN_PATH: str = main_path
+        Bank.MAIN_PATH = main_path
+        self.existing_bank_names: List[str] = []
+        self.inspected_bank: Bank | None = None
+
+    def clear(self) -> None:
+        """ Clear the inspected bank """
+        self.inspected_bank = None
+
+    def inspect(self, bank_name: str) -> None:
+        """ Set the card data bank file paths based on the selected bank_name. """
+        self.inspected_bank = Bank.load(bank_name)
+
+    def load(self) -> None:
+        """ Read all folders inside self.tool_path and build self.existing_bank_names. """
+        if not (path.exists(self.MAIN_PATH) and path.isdir(self.MAIN_PATH)):
+            print(f"Tool path {self.MAIN_PATH} does not exist or is not a directory.")
+            return
+        self.existing_bank_names = [name for name in os.listdir(self.MAIN_PATH) if path.isdir(path.join(self.MAIN_PATH, name))]
+
     def delete(self, bank_name: str) -> None:
-        """Delete an existing card bank."""
+        """ Delete an existing card bank. """
         bank_folder_path = path.join(self.MAIN_PATH, bank_name)
 
         if not path.exists(bank_folder_path) or not path.isdir(bank_folder_path):
@@ -114,3 +173,6 @@ class BankManager:
             print(f"Successfully deleted bank '{bank_name}'")
         except Exception as e:
             print(f"An error occurred while deleting the bank: {e}")
+
+        if not self.inspected_bank.exists():
+            self.clear()
