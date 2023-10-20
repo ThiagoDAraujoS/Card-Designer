@@ -10,66 +10,110 @@ from data import Card
 @dataclass_json
 @dataclass
 class Data:
-    """ Container for a set of defined cards """
+    """ Data class for managing a collection of cards. """
     cards: Set[Card] = field(default_factory=list)
+    """ A set of cards contained in the data. """
 
 
 class Bank:
-    """ Card Bank representation, this class can be serialized and deserialized """
+    """ Bank class for managing card banks and their file representation. """
 
     MAIN_PATH = ""
+    """ The main path where banks are located. """
 
-    def __init__(self):
-        self.bank_path = ""
-        """ The folder where this bank is located """
+    def __init__(self, name):
+        """ Initializes a Bank object with the given name. """
 
-        self.data_path = ""
-        """ Path to the data.json file """
+        self.name = name
+        """ The name of the bank. """
 
-        self.images_path = ""
-        """ Path to the images folder """
+        self.bank_path = path.join(Bank.MAIN_PATH, self.name)
+        """ The path to the bank folder. """
+
+        self.data_path = path.join(self.bank_path, "data.json")
+        """ The path to the data.json file. """
+
+        self.images_path = path.join(self.bank_path, "images")
+        """ The path to the images folder. """
 
         self.data: Data = Data()
-        """ Serialized Card Bank """
+        """ Serialized card bank data. """
 
     @staticmethod
-    def create(bank_name: str) -> None:
-        """ Create a new card bank with the given name. """
-        self = Bank()
+    def is_legal(name) -> bool:
+        """ Checks if the bank folder and required files exist. """
+        bank_path = path.join(Bank.MAIN_PATH, name)
+        data_path = path.join(bank_path, "data.json")
+        images_path = path.join(bank_path, "images")
 
-        bank_folder_path = path.join(Bank.MAIN_PATH, bank_name)
+        if not path.exists(bank_path):
+            print(f"Bank {bank_path} folder does not exist.")
+            return False
 
-        if path.exists(bank_folder_path):
-            print(f"Bank {bank_name} already exists.")
-            return
+        if not path.exists(images_path):
+            print(f"Bank {images_path} folder does not exist.")
+            return False
 
-        # Create the bank folder
-        os.mkdir(bank_folder_path)
+        if not path.exists(data_path):
+            print(f"Bank {data_path} file does not exist.")
+            return False
 
-        # Create an empty data.json file
-        data_file_path = path.join(bank_folder_path, "data.json")
-        with open(data_file_path, 'w') as data_file:
-            data_file.write(self.to_json(indent=2))
+        return True
 
-        # Create an empty 'images' folder
-        images_folder_path = path.join(bank_folder_path, "images")
-        os.mkdir(images_folder_path)
+    @staticmethod
+    def _is_empty(name) -> bool:
+        """ Checks if the bank folder and required files do not exist. """
+        bank_path = path.join(Bank.MAIN_PATH, name)
+        data_path = path.join(bank_path, "data.json")
+        images_path = path.join(bank_path, "images")
+
+        if path.exists(bank_path):
+            print(f"Bank {bank_path} folder already exists.")
+            return False
+
+        if path.exists(images_path):
+            print(f"Bank {images_path} folder already exists.")
+            return False
+
+        if path.exists(data_path):
+            print(f"Bank {data_path} file already exists.")
+            return False
+
+        return True
+
+    @staticmethod
+    def create(bank_name: str):
+        """ Creates a new bank with the given name. """
+        self = Bank(bank_name)
+
+        if not Bank._is_empty(bank_name): return
+
+        os.mkdir(self.bank_path)
+        os.mkdir(self.images_path)
+        with open(self.data_path, 'w') as data_file:
+            data_file.write(self.data.to_json(indent=2))
 
         print(f"Created bank: {bank_name}")
+        return self
 
     @staticmethod
     def copy(source_name: str, new_name: str):
-        """ Copy an existing card bank and change its name. """
+        """ Copies an existing bank to a new bank with a different name. """
         source_folder_path = path.join(Bank.MAIN_PATH, source_name)
         destination_folder_path = path.join(Bank.MAIN_PATH, new_name)
 
-        if not path.exists(source_folder_path) or path.exists(destination_folder_path):
-            print("Source bank does not exist or the destination bank already exists.")
+        if not Bank.is_legal(source_name):
+            print("Source bank does not exist.")
+            return
+
+        if not Bank._is_empty(new_name):
+            print("The destination bank already exists.")
             return
 
         try:
             shutil.copytree(source_folder_path, destination_folder_path)
             print(f"Successfully copied bank '{source_name}' to '{new_name}'")
+
         except Exception as e:
             print(f"An error occurred while copying the bank: {e}")
 
@@ -77,16 +121,9 @@ class Bank:
 
     @staticmethod
     def load(bank_name):
-        """ Form a Bank object out of a data file """
-        self = Bank()
-        self.bank_path = path.join(Bank.MAIN_PATH, bank_name)
-        self.data_path = path.join(self.bank_path, "data.json")
-        self.images_path = path.join(self.bank_path, "images")
-
-        if not path.exists(self.images_path) or not path.exists(self.data_path):
-            print(f"Bank {bank_name} not found or incomplete.")
-            return
-
+        """ Loads the data of an existing bank. """
+        self = Bank(bank_name)
+        if not Bank.is_legal(bank_name): return
         try:
             with open(self.data_path, 'r') as data_file:
                 json_string = data_file.read()
@@ -99,30 +136,11 @@ class Bank:
         return self
 
     def save(self):
-        """ Save the inspected bank to file """
+        """ Saves the bank data to the data.json file. """
+        if not Bank.is_legal(self.name): return
         try:
             with open(self.data_path, 'w') as data_file:
                 json_string = self.data.to_json(indent=2)
                 data_file.write(json_string)
         except Exception as e:
             print(f"An error occurred while saving the data: {e}")
-
-    def exists(self):
-        """ Check if all required folders and files exist.
-
-        Returns:
-            bool: True if all required components exist, False otherwise.
-        """
-        # Check if the bank_path directory exists
-        if not os.path.exists(self.bank_path):
-            return False
-
-        # Check if the data_path file exists
-        if not os.path.exists(self.data_path):
-            return False
-
-        # Check if the images_path directory exists
-        if not os.path.exists(self.images_path):
-            return False
-
-        return True
