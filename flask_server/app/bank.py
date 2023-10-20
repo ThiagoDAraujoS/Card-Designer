@@ -1,10 +1,14 @@
-from dataclasses_json import dataclass_json
-from dataclasses import dataclass, field
 import os
 from os import path
+
 import shutil
+
+from dataclasses_json import dataclass_json
+from dataclasses import dataclass, field
+
 from typing import Set
-from data import Card
+
+from flask_server.app.data import Card
 
 
 @dataclass_json

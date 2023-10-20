@@ -2,7 +2,8 @@ import os
 from os import path
 import shutil
 from typing import Set
-from bank import Bank
+
+from flask_server.app.bank import Bank
 
 
 class BankRegistry:
