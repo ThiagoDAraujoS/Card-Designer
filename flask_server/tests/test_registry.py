@@ -1,5 +1,5 @@
 from unittest import TestCase
-from flask_server.app.bank_registry import BankRegistry
+from flask_server.app.registry import Registry
 import os
 import shutil
 

@@ -101,6 +101,10 @@ class Bank:
 
         print(f"Selected bank: {self.name}")
 
+    def unload(self):
+        """ Erase all bank's data """
+        self.data = Data()
+
     def save(self):
         """ Saves the bank data to the data.json file. """
         if not self.is_legal():
