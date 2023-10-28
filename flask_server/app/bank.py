@@ -3,7 +3,7 @@ from os import path
 import shutil
 from dataclasses_json import dataclass_json
 from dataclasses import dataclass, field
-from typing import Set
+from typing import List
 
 from flask_server.app.data import Card
 
@@ -12,23 +12,22 @@ from flask_server.app.data import Card
 @dataclass
 class Data:
     """ Data class for managing a collection of cards. """
-    cards: Set[Card] = field(default_factory=set)
+    cards: List[Card] = field(default_factory=list)
     """ A set of cards contained in the data. """
 
 
 class Bank:
     """ Bank class for managing card banks and their file representation. """
-    MAIN_PATH = ""
     META_FILE_NAME: str = "index.json"
     CACHE_FOLDER_NAME: str = "files"
 
-    def __init__(self, name):
+    def __init__(self, name, main_path):
         """ Initializes a Bank object with the given name. """
 
         self.name = name
         """ The name of the bank. """
 
-        self.path = path.join(Bank.MAIN_PATH, self.name)
+        self.path = path.join(main_path, self.name)
         """ The path to the bank folder. """
 
         self.meta_path = path.join(self.path, self.__class__.META_FILE_NAME)
@@ -57,9 +56,9 @@ class Bank:
             data_file.write(self.data.to_json(indent=2))
 
     @classmethod
-    def create(cls, bank_name: str):
+    def create(cls, bank_name: str, main_path: str):
         """ Creates a new bank with the given name. """
-        instance = cls(bank_name)
+        instance = cls(bank_name, main_path)
 
         if not instance.is_empty():
             raise Exception("Bank already exists")
@@ -69,9 +68,9 @@ class Bank:
         print(f"{bank_name} bank was created")
         return instance
 
-    def copy(self, new_name: str):
+    def copy(self, new_name: str, main_path):
         """ Copies an existing bank to a new bank with a different name. """
-        instance = self.__class__(new_name)
+        instance = self.__class__(new_name, main_path)
 
         if not self.is_legal():
             raise Exception("Source bank does not exist")
@@ -84,8 +83,8 @@ class Bank:
             print(f"Successfully copied bank '{self.name}' to '{instance.name}'")
         except Exception as e:
             raise Exception(f"An error occurred while copying the bank: {e}")
-
-        return instance.load()
+        instance.load()
+        return instance
 
     def load(self):
         """ Loads the data of an existing bank. """
@@ -115,3 +114,8 @@ class Bank:
                 data_file.write(json_string)
         except Exception as e:
             raise Exception(f"An error occurred while saving the data: {e}")
+
+    def delete(self):
+        """ Delete this bank's files """
+        shutil.rmtree(self.path)
+        self.data = Data()

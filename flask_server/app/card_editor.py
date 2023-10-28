@@ -3,14 +3,14 @@ import shutil
 from os import path
 from image_folder import ImageFolder
 from data import Card
-from bank_registry import BankRegistry
+from registry import Registry
 
 
 class CardEditor:
     def __init__(self, image_folder: ImageFolder, bank_manager: BankRegistry, main_path):
         self.MAIN_PATH: str = main_path
         self.image_folder: ImageFolder = image_folder
-        self.bank_manager: BankRegistry = bank_manager
+        self.bank_manager: Registry = bank_manager
         self.inspected_card: Card | None = None
 
     def create(self, card_name: str, image_file_name: str) -> None:

@@ -9,26 +9,33 @@ from flask_server.app.bank import Bank
 
 
 class Registry:
-    MAIN_PATH = ""
-    """ The main path where banks are located. """
-
     IMAGE_BANK_NAME = "images"
     REGISTRY_FOLDER_NAME = "banks"
 
-    def __init__(self):
+    def __init__(self, main_path):
         """ Initializes a BankRegistry object with the main path for managing banks. """
-        self.path = path.join(Registry.MAIN_PATH, Registry.REGISTRY_FOLDER_NAME)
-        if not path.exists(self.path):
-            os.mkdir(self.path)
-        Bank.MAIN_PATH = self.path
+        self.main_path: str = main_path
+        """ This registry folder path """
+
+        self.card_bank_path: str = path.join(self.main_path, Registry.REGISTRY_FOLDER_NAME)
+        """ The path within the registry to where card banks are stored """
+
         self.image_bank: ImageBank | None = None
+        """ Reference to the image bank object that oversee the images """
+
         self.card_bank_names: Set[str] = set()
+        """ Reference to all card banks names stored in the card bank folder """
+
         self.inspected_bank: CardBank | None = None
-        self.load_registry()
+        """ Reference to an inspected card bank, this bank will have all its cards loaded in memory """
 
-    def load_registry(self):
-        self.image_bank = ImageBank(Registry.IMAGE_BANK_NAME)
+    def build_registry(self):
+        """ This method assign the registry path variables and build all missing structural folders """
+        # Rebuild the image bank primitive
+        self.image_bank = ImageBank(Registry.IMAGE_BANK_NAME, self.main_path)
 
+        # Verify if the image bank folder exists, if it does not, make it, and if it does,
+        # ensure it's a folder structure suitable to host a bank primitive
         if self.image_bank.is_empty():
             self.image_bank.build()
         elif not self.image_bank.is_legal():
@@ -36,15 +43,22 @@ class Registry:
         else:
             self.image_bank.load()
 
+        # Reconstruct the card bank folder path and initialize an empty card bank set to hold each bank
+        self.card_bank_path = path.join(self.main_path, Registry.REGISTRY_FOLDER_NAME)
         self.card_bank_names = set()
-        self.path = path.join(Registry.MAIN_PATH, Registry.REGISTRY_FOLDER_NAME)
 
-        for folder_name in os.listdir(self.path):
-            if path.isdir(path.join(Bank.MAIN_PATH, folder_name)):
-                new_bank = CardBank(folder_name)
-                if new_bank.is_legal():
-                    self.card_bank_names.add(folder_name)
-                    print(f"{new_bank} loaded successfully")
+        # If the card bank folder exists, peer through it in order to collect all stashed banks,
+        if path.exists(self.card_bank_path):
+            for folder_name in os.listdir(self.card_bank_path):
+                if path.isdir(path.join(self.card_bank_path, folder_name)):
+                    new_bank = CardBank(folder_name, self.card_bank_path)
+                    if new_bank.is_legal():
+                        self.card_bank_names.add(folder_name)
+                        print(f"{new_bank} loaded successfully")
+
+        # If not create a new card banks folder
+        else:
+            os.mkdir(self.card_bank_path)
 
     @staticmethod
     def ensure_bank_is_legal(func):
@@ -58,11 +72,11 @@ class Registry:
             if bank_name not in self.card_bank_names:
                 raise Exception("Bank not found in the registry")
 
-            new_bank = CardBank(bank_name)
+            new_bank = CardBank(bank_name, self.card_bank_path)
             if not new_bank.is_legal():
                 raise Exception("Invalid bank structure")
 
-            func(self, new_bank, *args, **kwargs)
+            return func(self, new_bank, *args, **kwargs)
 
         return inner
 
@@ -70,8 +84,9 @@ class Registry:
     def reload_registry(func):
         """ Decorator to reload the bank registry after executing a method. """
         def inner(self, *args, **kwargs):
-            func(self, *args, **kwargs)
-            self.load_registry()
+            result = func(self, *args, **kwargs)
+            self.build_registry()
+            return result
         return inner
 
     @ensure_bank_is_legal
@@ -97,11 +112,11 @@ class Registry:
     @reload_registry
     def copy_bank(self, bank: str | CardBank, new_bank_name: str) -> CardBank:
         """ Copies an existing bank to a new bank with a different name. """
-        return bank.copy(new_bank_name)
+        return bank.copy(new_bank_name, self.card_bank_path)
 
     @reload_registry
     def create_bank(self, bank_name: str) -> CardBank:
         """ Creates a new bank with the given name. """
-        new_bank = CardBank.create(bank_name)
+        new_bank = CardBank.create(bank_name, self.card_bank_path)
         self.card_bank_names.add(new_bank.name)
         return new_bank
