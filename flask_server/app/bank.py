@@ -1,19 +1,8 @@
 import os
+from abc import abstractmethod
 from os import path
 import shutil
 from dataclasses_json import dataclass_json
-from dataclasses import dataclass, field
-from typing import List
-
-from flask_server.app.data import Card
-
-
-@dataclass_json
-@dataclass
-class Data:
-    """ Data class for managing a collection of cards. """
-    cards: List[Card] = field(default_factory=list)
-    """ A set of cards contained in the data. """
 
 
 class Bank:
@@ -36,8 +25,16 @@ class Bank:
         self.cache_path = path.join(self.path, self.__class__.CACHE_FOLDER_NAME)
         """ The path to the images folder. """
 
-        self.data: Data = Data()
+        self.data = self._init_data()
         """ Serialized card bank data. """
+
+    @abstractmethod
+    def _init_data(self) -> dataclass_json:
+        return dataclass_json()
+
+    @abstractmethod
+    def _data_from_json(self, json_string) -> dataclass_json:
+        return dataclass_json()
 
     def is_legal(self):
         """ Return if the folder structure of this bank is legal """
@@ -93,7 +90,7 @@ class Bank:
         try:
             with open(self.meta_path, 'r') as data_file:
                 json_string = data_file.read()
-                self.data = Data.from_json(json_string)
+                self.data = self._data_from_json(json_string)
 
         except Exception as e:
             raise Exception(f"An error occurred while loading the data: {e}")
@@ -102,7 +99,7 @@ class Bank:
 
     def unload(self):
         """ Erase all bank's data """
-        self.data = Data()
+        self.data = self._init_data()
 
     def save(self):
         """ Saves the bank data to the data.json file. """
@@ -118,4 +115,4 @@ class Bank:
     def delete(self):
         """ Delete this bank's files """
         shutil.rmtree(self.path)
-        self.data = Data()
+        self.data = self._init_data()
