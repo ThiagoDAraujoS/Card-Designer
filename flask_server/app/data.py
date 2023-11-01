@@ -1,13 +1,12 @@
 from dataclasses import dataclass, field
 from typing import Set, Tuple
 from dataclasses_json import dataclass_json
-import uuid
+from . import UUIDString
 
 
 @dataclass_json
 @dataclass
 class Card:
-    id: uuid.UUID = field(default_factory=uuid.uuid4)
     cost: int = 0
     energy: int = 0
     type: str = "no type"

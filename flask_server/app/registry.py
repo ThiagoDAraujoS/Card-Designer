@@ -5,19 +5,19 @@ from typing import Set
 
 from flask_server.app.card_bank import CardBank
 from flask_server.app.image_bank import ImageBank
-from flask_server.app.bank import Bank
+from . import PathString
 
 
 class Registry:
     IMAGE_BANK_NAME = "images"
     REGISTRY_FOLDER_NAME = "banks"
 
-    def __init__(self, main_path):
+    def __init__(self, main_path: PathString):
         """ Initializes a BankRegistry object with the main path for managing banks. """
-        self.main_path: str = main_path
+        self.main_path: PathString = main_path
         """ This registry folder path """
 
-        self.card_bank_path: str = path.join(self.main_path, Registry.REGISTRY_FOLDER_NAME)
+        self.card_bank_path: PathString = PathString(path.join(self.main_path, Registry.REGISTRY_FOLDER_NAME))
         """ The path within the registry to where card banks are stored """
 
         self.image_bank: ImageBank | None = None
@@ -29,7 +29,7 @@ class Registry:
         self.inspected_bank: CardBank | None = None
         """ Reference to an inspected card bank, this bank will have all its cards loaded in memory """
 
-    def build_registry(self):
+    def build_registry(self) -> None:
         """ This method assign the registry path variables and build all missing structural folders """
         # Rebuild the image bank primitive
         self.image_bank = ImageBank(Registry.IMAGE_BANK_NAME, self.main_path)
@@ -44,7 +44,7 @@ class Registry:
             self.image_bank.load()
 
         # Reconstruct the card bank folder path and initialize an empty card bank set to hold each bank
-        self.card_bank_path = path.join(self.main_path, Registry.REGISTRY_FOLDER_NAME)
+        self.card_bank_path = PathString(path.join(self.main_path, Registry.REGISTRY_FOLDER_NAME))
         self.card_bank_names = set()
 
         # If the card bank folder exists, peer through it in order to collect all stashed banks,
@@ -93,7 +93,7 @@ class Registry:
     def load_bank(self, bank: str | CardBank) -> CardBank:
         """ Inspects a bank and returns the corresponding Bank object. """
         if self.inspected_bank:
-            self.inspected_bank.unload()
+            self.inspected_bank.clear()
         self.inspected_bank = bank
         bank.load()
         return bank
