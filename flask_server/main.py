@@ -1,4 +1,6 @@
 """ This should just test the src """
+import time
+
 from flask_server.src.manager import Manager
 from flask_server.src.images import ImageBank, ImageData
 from flask_server.src.registry import Registry
@@ -26,13 +28,17 @@ print(projects)
 
 test_project = registry.get_project(project_name)
 print(test_project.get_save_files())
-test_project.create_card(Json("{name:Sun Dino,Type:Dino}"))
+card_uuid = test_project.create_card(Json("{name:Sun Dino,Type:Dino}"))
 test_project.create_save_file(Save("SaveFile"), "First Card Was Created")
 print(test_project.__dict__)
 
-
-registry.delete_project(project_name)
+# registry.delete_project(project_name)
 projects = registry.get_project_names()
 print(projects)
 
-manager.uninstall()
+test_project.update_card(card_uuid, Json("{name:Moon Dino,Type:Dino}"))
+print(test_project.get_card_list())
+print(test_project.get_changed_cards())
+test_project.save_changes("Changed Cards")
+print(test_project.get_changed_cards())
+print(test_project.repo.index)

@@ -1,7 +1,9 @@
+import stat
 from typing import List
 import os
 import shutil
 import git
+import subprocess
 
 from flask_server.src import Path, Project
 from flask_server.src.card_set import CardSet
@@ -24,7 +26,7 @@ class Registry:
         except git.InvalidGitRepositoryError:
             return None
 
-    def get_project_names(self) -> List[str]:
+    def get_project_names(self) -> List[Project]:
         """ Return a list with all valid projects inside the registry """
         projects = []
         for folder_name in os.listdir(self.path):
@@ -32,7 +34,7 @@ class Registry:
                 continue
 
             if self._get_git_repo(Project(folder_name)):
-                projects.append(folder_name)
+                projects.append(Project(folder_name))
 
         return projects
 
@@ -53,9 +55,13 @@ class Registry:
         if not os.path.exists(folder_path):
             raise FileNotFoundError("REGISTRY DELETE - Project does not exist in registry")
 
-        shutil.rmtree(os.path.join(self.path, name))
+        git.rmtree(folder_path)
 
     def get_project(self, name: Project) -> CardSet:
         """ Return a CardSet project object from the registry """
         project_path = Path(os.path.join(self.path, name))
         return CardSet(project_path, self._get_git_repo(name))
+
+# repo = self._get_git_repo(name)
+# repo.close()
+# git.rmtree(os.path.join(self.path, name))
