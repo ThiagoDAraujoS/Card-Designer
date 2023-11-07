@@ -1,6 +1,11 @@
 import os
 import shutil
-from . import Path
+from typing import Tuple
+
+from flask_server.src.card_set import CardSet
+from flask_server.src.images import ImageBank
+from flask_server.src.registry import Registry
+from flask_server.src import Path, Project
 
 
 class Manager:
@@ -10,6 +15,12 @@ class Manager:
         self.app_folder: Path = Path(os.path.join(src_folder, "app"))
         self.images_folder: Path = Path(os.path.join(self.app_folder, "images"))
         self.sets_folder: Path = Path(os.path.join(self.app_folder, "card_sets"))
+        self.loaded_project: Tuple[Project, CardSet] | None = None
+        self.image_bank: ImageBank | None = None
+        self.registry: Registry | None = None
+
+    def load_project(self, project: Project):
+        self.loaded_project = project, self.registry.get_project(project)
 
     def install(self):
         """ Build the app's folders """
@@ -26,3 +37,7 @@ class Manager:
             raise FileNotFoundError("MANAGER UNINSTALL - The 'app' folder does not exist.")
 
         shutil.rmtree(self.app_folder)
+
+    def initialize_components(self):
+        self.image_bank = ImageBank(self.images_folder)
+        self.registry = Registry(self.sets_folder)

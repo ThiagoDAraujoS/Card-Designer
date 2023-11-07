@@ -1,20 +1,17 @@
-"""
-This script describes a card set, card sets contain many card files and are controlled by GIT
-"""
-
 import git
 import os
 from uuid import uuid4 as generate_uuid
 from uuid import UUID
 
 from flask_server.src import Json, Path, Uuid, Save
-from typing import NewType, List
+from typing import List
 
 
 SETTINGS_FILE_NAME = "settings.json"
 
 
 class CardSet:
+    """ This script describes a card set, card sets contain many card files and are controlled by GIT """
     def __init__(self, path: Path, repo: git.Repo):
         """ Initialize a CardSet object """
         self.path: Path = path
@@ -22,6 +19,7 @@ class CardSet:
 
     @staticmethod
     def create_repo(path):
+        """ Create a repo for this card set, this is designed to be used by the registry"""
         repo = git.Repo.init(path)
         open(os.path.join(path, SETTINGS_FILE_NAME), "wb").close()
         repo.index.add("*")
@@ -29,6 +27,7 @@ class CardSet:
         return repo
 
     def save_changes(self, message: str):
+        """ Commit the changes to this save file """
         # Get the current branch name
         branch_name = self.repo.active_branch.name
 
@@ -62,6 +61,7 @@ class CardSet:
         self.save_changes(message)
 
     def get_save_files(self):
+        """ Get a list of all saved files """
         return [branch.name for branch in self.repo.heads]
 
     def delete_save_file(self, name: Save):
@@ -105,6 +105,7 @@ class CardSet:
             return Json(file.read())
 
     def get_card_list(self) -> List[UUID]:
+        """ Get a list with all cards in this set """
         cards = []
         for file in os.listdir(self.path):
             if not os.path.isfile(os.path.join(self.path, file)) or file == SETTINGS_FILE_NAME:
@@ -114,6 +115,7 @@ class CardSet:
         return cards
 
     def get_changed_cards(self) -> List[UUID]:
+        """ Get all files that have been changed but not saved """
         result = []
         for card in self.repo.index.diff(None):
             card = card.b_path

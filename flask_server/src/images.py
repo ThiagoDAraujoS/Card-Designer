@@ -1,4 +1,3 @@
-
 import os
 import shutil
 
@@ -12,6 +11,8 @@ from uuid import uuid4 as generate_uuid
 from uuid import UUID
 from . import (Path)
 
+from flask_server.src import Json, Uuid
+
 
 NAME_IMAGE_TAG = "ImageName"
 EXIF_TAG_ORIGINAL_RAW_FILE_NAME = 0xc68b
@@ -24,6 +25,7 @@ META_GPS = "GPS"
 class ImageData:
     """ Data stub used to describe pictures in the image bank """
     file_name: str = ""
+    data: Json = "{}"
 
 
 class ImageBank:
@@ -33,15 +35,14 @@ class ImageBank:
     these images to build the cards panels
     """
     def __init__(self, image_bank_path: Path):
-        self.images: Dict[UUID, ImageData] = {}
         self.path: Path = image_bank_path
 
         if not os.path.exists(image_bank_path):
             raise FileNotFoundError("IMAGE_BANK SETUP - Missing image bank folder")
 
-    def compile_image_list(self):
-        """ Look for all the images stored in self.path, and compile the self.images dictionary """
-        self.images = {}
+    def compile_image_list(self) -> Dict[Uuid, ImageData]:
+        """ Look for all the images stored in `self.path`, and compile the `self.images` dictionary """
+        images = {}
 
         for file_name in os.listdir(self.path):
             name, extension = os.path.splitext(file_name)
@@ -52,14 +53,16 @@ class ImageBank:
             try:
                 image_uuid: UUID = UUID(name)
                 image = self.read_image_metadata(image_uuid)
-                self.images[image_uuid] = image
+                images[Uuid(str(image_uuid))] = image
 
             except ValueError:
                 print(f"IMAGE_BANK SETUP - {name}'s file name is not a valid UUID.")
                 continue
 
+        return images
+
     def get_image_path(self, image_uuid: UUID) -> Path:
-        """ Return the absolute path of a image within the self.path folder """
+        """ Return the absolute path of an image within the `self.path` folder """
         return Path(os.path.join(self.path, f"{str(image_uuid)}.jpg"))
 
     def write_image_metadata(self, image_uuid: UUID, image_data: ImageData):
@@ -74,6 +77,7 @@ class ImageBank:
         exif_bytes = piexif.dump(exif_dict)
 
         image.save(path, exif=exif_bytes)
+        image.close()
 
     def read_image_metadata(self, image_uuid: UUID) -> ImageData:
         """ Read the image metadata stubs to form an Image data blob """
@@ -90,8 +94,16 @@ class ImageBank:
 
         if EXIF_TAG_ORIGINAL_RAW_FILE_NAME in exif_data:
             image_data.file_name = exif_data[EXIF_TAG_ORIGINAL_RAW_FILE_NAME]
+            image_data.file_name = image_data.file_name.decode("UTF-8")
+
+        image.close()
 
         return image_data
+
+    def delete_image(self, image_uuid: UUID) -> None:
+        if not os.path.exists(self.get_image_path(image_uuid)):
+            raise FileNotFoundError("Missing Image")
+        os.remove(self.get_image_path(image_uuid))
 
     def import_image(self, image_path: Path, image_name = "") -> (UUID, ImageData):
         """ Import an image from a remote location into the bank """
@@ -116,7 +128,7 @@ class ImageBank:
             self.write_image_metadata(image_uuid, image_data)
 
             # Append this image to the bank index
-            self.images[image_uuid] = image_data
+            # self.images[image_uuid] = image_data
 
             # return the uuid and image data blob of this new image
             return image_uuid, image_data
