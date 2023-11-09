@@ -3,7 +3,7 @@ import os
 from uuid import uuid4 as generate_uuid
 from uuid import UUID
 
-from flask_server.src import Json, Path, Uuid, Save
+from flask_server.src import Json, Path, Uuid, Branch
 from typing import List
 
 
@@ -26,8 +26,11 @@ class CardSet:
         repo.index.commit("Project has started")
         return repo
 
+    def get_active_branch(self) -> Branch:
+        return Branch(self.repo.active_branch.name)
+
     def save_changes(self, message: str):
-        """ Commit the changes to this save file """
+        """ Commit the changes to this branch """
         # Get the current branch name
         branch_name = self.repo.active_branch.name
 
@@ -52,7 +55,7 @@ class CardSet:
         # Commit the changes
         self.repo.git.commit("-m", message)
 
-    def create_save_file(self, name: Save, message: str):
+    def create_branch(self, name: Branch, message: str):
         """ Create a new save_file or branch and push the current changes to this new save_file """
         if name in [branch.name for branch in self.repo.heads]:
             raise ValueError(f"CARD_SET SAVE - Save state '{name}' already exists.")
@@ -60,19 +63,19 @@ class CardSet:
         self.repo.heads[name].checkout()
         self.save_changes(message)
 
-    def get_save_files(self):
+    def get_branches(self):
         """ Get a list of all saved files """
         return [branch.name for branch in self.repo.heads]
 
-    def delete_save_file(self, name: Save):
-        """ Delete a save file """
+    def delete_branch(self, name: Branch):
+        """ Delete a branch """
         self.repo.git.branch("-D", name)
 
     def rollback(self):
         """ Rollback the current changes """
         self.repo.git.reset("--hard", "HEAD^")
 
-    def load_save_file(self, name: Save):
+    def load_branch(self, name: Branch):
         """ Checks out a save branch """
         self.repo.git.checkout(name, force=True)
 
@@ -80,47 +83,7 @@ class CardSet:
         """ Load a targeted commit """
         self.repo.git.checkout(commit_hash, force=True)
 
-    def create_card(self, card_data: Json) -> Uuid:
-        """ Create a new card file and stash it """
-        card_uuid = str(generate_uuid())
-        card_path = os.path.join(self.path, f"{card_uuid}.json")
-        with open(card_path, 'w') as file:
-            file.write(card_data)
-        return Uuid(card_uuid)
-
-    def update_card(self, card_uuid: Uuid, card_data: Json) -> None:
-        """ Update an existing card """
-        card_path = os.path.join(self.path, f"{card_uuid}.json")
-        if not os.path.exists(card_path):
-            raise FileNotFoundError("CARD_SET UPDATE_CARD - Missing card file")
-        with open(card_path, 'w') as file:
-            file.write(card_data)
-
-    def fetch_card(self, card_uuid: UUID) -> Json:
-        """ Get cards data """
-        card_path = os.path.join(self.path, f"{card_uuid}.json")
-        if not os.path.exists(card_path):
-            raise FileNotFoundError("CARD_SET UPDATE_CARD - Missing card file")
-        with open(card_path, 'r') as file:
-            return Json(file.read())
-
-    def get_card_list(self) -> List[UUID]:
-        """ Get a list with all cards in this set """
-        cards = []
-        for file in os.listdir(self.path):
-            if not os.path.isfile(os.path.join(self.path, file)) or file == SETTINGS_FILE_NAME:
-                continue
-            name, _ = os.path.splitext(file)
-            cards.append(UUID(name))
-        return cards
-
-    def get_changed_cards(self) -> List[UUID]:
-        """ Get all files that have been changed but not saved """
-        result = []
-        for card in self.repo.index.diff(None):
-            card = card.b_path
-            if not os.path.isfile(os.path.join(self.path, card)) or card == SETTINGS_FILE_NAME:
-                continue
-            name, _ = os.path.splitext(card)
-            result.append(UUID(name))
-        return result
+    def get_commit_list(self, branch_name):
+        branch = self.repo.heads[branch_name]
+        commit_list = [(commit.hexsha, commit.message) for commit in branch.commit.iter_parents()]
+        return commit_list

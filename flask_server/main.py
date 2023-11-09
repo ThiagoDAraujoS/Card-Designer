@@ -4,12 +4,12 @@ import time
 from flask_server.src.manager import Manager
 from flask_server.src.images import ImageBank, ImageData
 from flask_server.src.registry import Registry
-from flask_server.src import Path, Project, Json, Save
+from flask_server.src import Path, Project, Json, Branch
 
 IMAGE_PATH = Path("C:\\Users\\Thiago\\Desktop\\Portifolio Projects\\Card Designer\\cards\\wallpapersden.com_minimal-hd-landscape_500x500.jpg")
 
 manager = Manager()
-manager.install()
+manager.initialize()
 image_bank = ImageBank(manager.images_folder)
 registry = Registry(manager.sets_folder)
 
@@ -27,9 +27,9 @@ projects = registry.get_project_names()
 print(projects)
 
 test_project = registry.get_project(project_name)
-print(test_project.get_save_files())
+print(test_project.get_branches())
 card_uuid = test_project.create_card(Json("{name:Sun Dino,Type:Dino}"))
-test_project.create_save_file(Save("SaveFile"), "First Card Was Created")
+test_project.create_branch(Branch("SaveFile"), "First Card Was Created")
 print(test_project.__dict__)
 
 # registry.delete_project(project_name)

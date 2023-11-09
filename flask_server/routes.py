@@ -4,6 +4,7 @@ from flask_server.src.images import ImageData
 from flask_server.src import Path
 
 manager = Manager()
+manager.initialize()
 app = Flask(__name__)
 
 
@@ -11,65 +12,53 @@ app = Flask(__name__)
 def hello_world():  # put application's code here
     return 'Hello World!'
 
-
-@app.route("/install", methods=['GET'])
-def install():
-    manager.install()
-    manager.initialize_components()
-    return jsonify(message="application installed"), 200
+# ------------------   IMAGE BANK OPERATIONS -------------------------
 
 
-@app.route("/initialize", methods=["GET"])
-def initialize():
-    manager.initialize_components()
-    return jsonify(message="components initialized"), 200
-
-
-@app.route('/projects', methods=['GET'])
-def project_names():
-    return manager.registry.get_project_names(), 200
-
-
-# IMAGE BANK OPERATIONS
-@app.route('/image-bank/reload', methods=['GET'])
+@app.route('/images', methods=['LIST'])
 def get_image_list():
     image_list = manager.image_bank.compile_image_list()
-    return jsonify({"cards": image_list})
+    return jsonify({"cards": image_list}), 200
 
 
-@app.route('/image-bank/import', methods=['POST'])
+@app.route('/images', methods=['POST'])
 def import_image():
     data = request.get_json()
     image_uuid, image_data = manager.image_bank.import_image(Path(data['image_path']), data['image_name'])
-    return jsonify({"uuid": str(image_uuid), "image_data": image_data.__dict__})
+    return jsonify({"uuid": str(image_uuid), "image_data": image_data.__dict__}), 201
 
 
-@app.route('/image-bank/card/<uuid>', methods=['PUT'])
-def update_image_metadata(uuid):
+@app.route('/images/<uuid>', methods=['DELETE'])
+def delete_image(uuid):
+    manager.image_bank.delete_image(uuid)
+    return jsonify(message=f"image {uuid} deleted"), 204
+
+
+@app.route('/images/<uuid>/data', methods=['PUT'])
+def update_image_data(uuid):
     data = request.get_json()
     image_data = ImageData(data["name"], data["data"])
     manager.image_bank.write_image_metadata(uuid, image_data)
-    return jsonify({"message": f"Metadata for image {uuid} updated successfully"})
+    return jsonify({"message": f"Metadata for image {uuid} updated successfully"}), 200
 
 
-@app.route('/image-bank/metadata/<uuid>', methods=['GET'])
-def get_image_metadata(uuid):
+@app.route('/images/<uuid>/data', methods=['GET'])
+def get_image_data(uuid):
     image_data = manager.image_bank.read_image_metadata(uuid)
-    return jsonify(image_data.__dict__)
+    return jsonify({"data": image_data.__dict__}), 200
 
 
-@app.route('/image-bank/metadata/<uuid>', methods=['DELETE'])
-def delete_image(uuid):
-    manager.image_bank.delete_image(uuid)
-    return jsonify(message="image deleted"), 200
-
-# -------- Registry ------------
+@app.route('/registry', methods=['LIST'])
+def get_project_list():
+    projects = manager.registry.get_project_names()
+    return jsonify({"projects": projects}), 200
 
 
-@app.route('/registry/projects', methods=['POST'])
+@app.route('/registry', methods=['POST'])
 def create_project():
     data = request.get_json()
     project_name = data.get("project_name")
+
     if not project_name:
         return jsonify({"error": "Project name is required"}), 400
 
@@ -78,48 +67,60 @@ def create_project():
     return jsonify({"message": f"Project '{project_name}' created successfully"}), 201
 
 
-@app.route('/registry/projects/<project_name>', methods=['GET'])
+@app.route('/registry/<project_name>', methods=['POST'])
 def open_project(project_name):
     manager.load_project(project_name)
-    return jsonify({"message": f"Project '{project_name}' open successfully"}), 201
+    return jsonify({"message": f"Project '{project_name}' open successfully"}), 200
 
 
-# @app.route('/registry/projects/folder', methods=['GET'])
-# def open_projects_folder():
-#     project_folder = manager.registry.path
-#     return jsonify({"projects_folder": str(project_folder)})
+@app.route('/project', methods=['GET'])
+def get_active_branch():
+    active_branch = manager.project.get_active_branch()
+    return jsonify({"active_branch": active_branch}), 200
 
 
-@app.route('/registry/projects', methods=['GET'])
-def get_project_list():
-    projects = manager.registry.get_project_names()
-    return jsonify({"projects": projects})
-
-# ------------------ Card Set -------------------
-
-# Save changes
-
-# Create new save file
-
-# get save files
-
-# discard changes
-
-# load save file
-
-# load save state
-
-# create card
-
-# Update card
-
-# fetch card
-
-# get card list
-
-# get changed cards list
+@app.route('/project', methods=['LIST'])
+def get_branch_list():
+    branches = manager.project.get_branches()
+    return jsonify({'branch_list': branches}), 200
 
 
+@app.route('/project', methods=['PUT'])
+def create_branch():
+    data = request.get_json()
+    manager.project.create_branch(data['branch_name'], data['message'])
+    return jsonify(message=f"branch {data['branch_name']} created"), 201
+
+
+@app.route('/project', methods=['SAVE'])
+def save():
+    data = request.get_json()
+    manager.project.save_changes(data["message"])
+    return jsonify(message=f"file saved"), 201
+
+
+@app.route('/project', methods=['RESET'])
+def reset():
+    manager.project.rollback()
+    return jsonify(message=f"all changed discarded"), 205
+
+
+@app.route('/project/<branch>', methods=['LIST'])
+def get_commit_list(branch):
+    commits = manager.project.get_commit_list(branch)
+    return jsonify({'branches': commits}), 201
+
+
+@app.route('/project/<branch>', methods=['LOAD_BRANCH'])
+def load(branch):
+    manager.project.load_branch(branch)
+    return jsonify(message=f"Branch {branch} loaded"), 200
+
+
+@app.route('/project/<commit>', methods=['LOAD_COMMIT'])
+def load_commit(commit):
+    manager.project.load_commit(commit)
+    return jsonify(manager=f"Commit {commit} loaded"), 200
 
 
 if __name__ == '__main__':
